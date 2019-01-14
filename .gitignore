@@ -1,6 +1,8 @@
 # output location
 artifacts/
 
+packages/
+
 /tests/scripts/current
 
 # auto-generated during the build

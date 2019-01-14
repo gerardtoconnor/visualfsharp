@@ -1,3 +1,12 @@
+variables:
+- name: MSBuildConfiguration
+  value: 'Release'
+- name: PB_PublishBlobFeedUrl
+  value: https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
+- group: DotNet-Blob-Feed
+- name: PB_PublishBlobFeedKey
+  value: $(dotnetfeed-storage-access-key-1)
+
 jobs:
 - job: Full_Signed
   pool:
@@ -32,12 +41,41 @@ jobs:
       arguments: '-binariesPath artifacts\bin -configuration $(MSBuildConfiguration) -branchName $(Build.SourceBranch) -apiKey $(FSharp.MyGetApiKey)'
     condition: and(succeeded(), contains(variables['PB_PublishType'], 'myget'))
 
-  # Publish packages to Azure Blob Storage
+  # Package publish
+  - task: CmdLine@1
+    displayName: Restore package publishing
+    inputs:
+      filename: '.nuget\NuGet.exe'
+      arguments: 'restore packages.config -PackagesDirectory packages -Source https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json'
+    condition: and(succeeded(), contains(variables['PB_PublishType'], 'blob'))
   - task: MSBuild@1
     displayName: Publish packages to Azure Blob Storage
     inputs:
       solution: PublishToBlob.proj
-      msbuildArguments: '/t:Build /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:AccountKey=$(PB_PublishBlobFeedKey) /p:ManifestBranch=$(SourceBranch) /p:ManifestCommit=$(SourceVersion) /p:ManifestBuildId=$(OfficialBuildId)'
+      msbuildArguments: '/t:Build /p:Configuration=$(MSBuildConfiguration) /p:ExpectedFeedUrl=$(PB_PublishBlobFeedUrl) /p:AccountKey=$(PB_PublishBlobFeedKey) /p:ManifestRepouri=$(Build.Repository.Uri) /p:ManifestBranch=$(Build.SourceBranch) /p:ManifestCommit=$(Build.SourceVersion) /p:ManifestBuildId=$(Build.BuildNumber) /bl:$(Build.SourcesDirectory)/artifacts/log/$(MSBuildConfiguration)/pub/publish.binlog'
+    condition: and(succeeded(), contains(variables['PB_PublishType'], 'blob'))
+  - task: PublishBuildArtifacts@1
+    displayName: Publish publishing bin log
+    inputs:
+      PathtoPublish: '$(Build.SourcesDirectory)/artifacts/log/$(MSBuildConfiguration)/pub'
+      ArtifactName: 'Publish_bin_log'
+      publishLocation: Container
+    continueOnError: true
+    condition: and(succeeded(), contains(variables['PB_PublishType'], 'blob'))
+  - task: CopyFiles@2
+    displayName: Gather Asset Manifests
+    inputs:
+      SourceFolder: '$(Build.SourcesDirectory)/assets/orchestration-metadata/manifests'
+      TargetFolder: '$(Build.StagingDirectory)/AssetManifests'
+    continueOnError: true
+    condition: and(succeeded(), contains(variables['PB_PublishType'], 'blob'))
+  - task: PublishBuildArtifacts@1
+    displayName: Push Asset Manifests
+    inputs:
+      PathtoPublish: '$(Build.StagingDirectory)/AssetManifests'
+      PublishLocation: Container
+      ArtifactName: AssetManifests
+    continueOnError: true
     condition: and(succeeded(), contains(variables['PB_PublishType'], 'blob'))
 
   # Create static drop

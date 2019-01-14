@@ -10,26 +10,24 @@
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
     <!-- This version should be kept in sync with `packages.config` -->
-    <FeedTasksPackageVersion>2.1.0-prerelease-02419-02</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.2.0-beta.19066.1</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <Import Project="$(MSBuildThisFileDirectory)packages\$(FeedTasksPackage).$(FeedTasksPackageVersion)\build\$(FeedTasksPackage).targets" />
 
   <ItemGroup>
-    <!-- this should pick up both *.nupkg and *.symbols.nupkg -->
-    <NuGetPackages Include="$(MSBuildThisFileDirectory)\artifacts\packages\$(Configuration)\Microsoft.FSharp.Compiler.*.nupkg" />
+    <!-- the string '-rtm-' is important, because that's the package with a per-build unique version number -->
+    <NuGetPackages Include="$(MSBuildThisFileDirectory)artifacts\packages\$(Configuration)\Microsoft.FSharp.Compiler.*-rtm-*.nupkg" />
   </ItemGroup>
 
   <Target Name="Build">
     <PushToBlobFeed ExpectedFeedUrl="$(ExpectedFeedUrl)"
                     AccountKey="$(AccountKey)"
                     ItemsToPush="@(NuGetPackages)"
-                    Overwrite="$(PublishOverwrite)"
+                    ManifestRepoUri="$(ManifestRepoUri)"
                     ManifestBranch="$(ManifestBranch)"
                     ManifestBuildId="$(ManifestBuildId)"
-                    ManifestCommit="$(ManifestCommit)"
-                    ManifestName="fsharp"
-                    SkipCreateManifest="false" />
+                    ManifestCommit="$(ManifestCommit)" />
   </Target>
 
 </Project>
